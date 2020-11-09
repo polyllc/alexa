@@ -29,7 +29,7 @@ Alexa has a wide variaty of features. You can create **playlists** (also called 
 - You'll need the following packages: `ytdl-core`, `discord.js`, `simpleyt`, `googleapis` (only if you want yt playlist and auto gen of songs, will update soon), `mysql`, all of the packages need to be latest.
 - You'll need a mysql server (since the mysql package is a bit outdated, you'll need to enable legacy support in the mysql server setup.), but if you don't care about playlist support, then you don't need this. (you'll need to remove some stuff though)
 Edit the alexa.js file and input your Youtube V3 API key on line 9, your mysql database config on lines 16-19 and your discord bot token on line 46.
-The mysql table structure is this: `CREATE TABLE playlists (id int NOT NULL AUTO_INCREMENT, guild VARCHAR(50), creator VARCHAR(50), title text, videos mediumtext);`, just input that to your mysql console, and you'll be good to go (make sure to select your database first! `use mysql` or `use {database name}`). More explaination on the reasoning of the structer in the extra notes. 
+The mysql table structure is this: `CREATE TABLE playlists (id int NOT NULL AUTO_INCREMENT PRIMARY KEY, guild VARCHAR(50), creator VARCHAR(50), title text, videos mediumtext);`, just input that to your mysql console, and you'll be good to go (make sure to select your database first! `use mysql` or `use {database name}`). More explaination on the reasoning of the structer in the extra notes. 
 After all of that, just run the bot with `node alexa.js` or with pm2 `pm2 start alexa.js`
 
 # Extra Notes

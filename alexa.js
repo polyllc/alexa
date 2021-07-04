@@ -3,56 +3,158 @@ const bot = new Discord.Client();
 const ytdl = require('ytdl-core');
 const fs = require('fs');
 const yt = require('simpleyt');
-var {google} = require('googleapis');
-var youtube = google.youtube({
-   version: 'v3',
-   auth: "youtube api key here (if you dont want to have this, just comment out functions: ytplaylist and autogen, remember to remove those commands too)"
-});
-var mysql = require("mysql");
-const { ServerResponse } = require("http"); //i didn't add this, what? eh visual studio code doin its thing
-const { commandDir } = require("yargs");
-
-var db_config = {
-  host: "your host, if its running on the same computer, then localhost",
-  user: "user",
-  password: "password",
-  database: "database (usually mysql)"
-};
+const deepspeech = require("deepspeech"); //you dont need this if you dont have voice commands enabled
+var mysql = require("mysql"); //you dont need this if you dont have playlists enabled
+const { isNumber } = require("lodash");
 
 
-function handleDisconnect() { //yay stackoverflow!!!!
-  con = mysql.createConnection(db_config); // Recreate the connection, since
-                                                  // the old one cannot be reused.
+//enable and disable certain functions of the bot
+const enableMysql = true;
+const enableVoice = true;
+const enableSpotify = true;
+const enableTwitch = true;
 
-  con.connect(function(err) {              // The server is either down
-    if(err) {                                     // or restarting (takes a while sometimes).
-      console.log('error when connecting to db:', err);
-      setTimeout(handleDisconnect, 2000); // We introduce a delay before attempting to reconnect,
-    }                                     // to avoid a hot loop, and to allow our node script to
-  });                                     // process asynchronous requests in the meantime.
-                                          // If you're also serving http, display a 503 error.
-  con.on('error', function(err) {
-    console.log('db error', err);
-    if(err.code === 'PROTOCOL_CONNECTION_LOST') { // Connection to the MySQL server is usually
-      handleDisconnect();                         // lost due to either server restart, or a
-    } else {                                      // connnection idle timeout (the wait_timeout
-      throw err;                                  // server variable configures this)
-    }
-  });
+
+
+
+if(enableMysql == true){
+  var db_config = {
+    host: "",
+    user: "",
+    password: "",
+    database: ""
+  };
+
+
+  function handleDisconnect() {
+    con = mysql.createConnection(db_config); // Recreate the connection, since
+                                                    // the old one cannot be reused.
+
+    con.connect(function(err) {              // The server is either down
+      if(err) {                                     // or restarting (takes a while sometimes).
+        console.log('error when connecting to db:', err);
+        setTimeout(handleDisconnect, 2000); // We introduce a delay before attempting to reconnect,
+      }                                     // to avoid a hot loop, and to allow our node script to
+    });                                     // process asynchronous requests in the meantime.
+                                            // If you're also serving http, display a 503 error.
+    con.on('error', function(err) {
+      console.log('db error', err);
+      if(err.code === 'PROTOCOL_CONNECTION_LOST') { // Connection to the MySQL server is usually
+        handleDisconnect();                         // lost due to either server restart, or a
+      } else {                                      // connnection idle timeout (the wait_timeout
+        throw err;                                  // server variable configures this)
+      }
+    });
+  }
+
+  handleDisconnect();
 }
 
-handleDisconnect();
+if(enableVoice == true){
+  const Sox = require('sox-stream');
+  const MemoryStream = require('memory-stream');
+  const Duplex = require('stream').Duplex;
+}
 
-bot.login('bot token here');
+if(enableSpotify == true){
+  var SpotifyWebApi = require('spotify-web-api-node');
+  var spotifyApi = new SpotifyWebApi({
+    clientId: '', //insert client id here from spotify
+    clientSecret: '' //insert client secret from spotify
+  });
+
+  spotifyGetToken();
+}
+
+
+
+if(enableTwitch == true){ //yea i just copy and pasted from the example
+
+
+const opts = {
+  identity: {
+    username: "", //your channel name
+    password: "" //get the oauth code from twitch or some other oauth code generator website
+  },
+  channels: [
+    "" //channel name
+  ]
+};
+
+const songRequestChannel = ""; //put the discord channel that will recieve the song requests from twitch chat
+const discordGuild = ""; //the discord server/guild to get the queue of song from
+
+
+  // Create a client with our options
+  const client = new tmi.client(opts);
+  //twitch integration
+  client.on('message', onMessageHandler);
+  client.on('connected', onConnectedHandler);
+
+  // Connect to Twitch:
+  client.connect();
+
+  // Called every time a message comes in
+  function onMessageHandler (target, context, msg, self) {
+    if (self) { return; } // Ignore messages from the bot
+
+    // Remove whitespace from chat message
+    const commandName = msg;
+
+    // If the command is known, let's execute it
+    if (commandName.startsWith('!song')) {
+      const serverQueue = queue.get(discordGuild);
+
+      if(serverQueue){
+        client.say(target, serverQueue.songs[0].title + " is currently playing");
+      }
+      else{
+        client.say(target, "Nothing is playing currently");
+      }
+      console.log(`* Executed ${commandName} command`);
+    }
+
+    if(commandName.startsWith("!req")){
+      var words = commandName.split(" ");
+      if(words.length == 1){
+        client.say(target, "Request a song to be played. I might not play it, I might. More of a chance I'll play if you put a link. If you spam this, you'll be timed out and eventually banned.");
+      }
+      else{
+        words.shift();
+        bot.channels.cache.find(c => c.id == songRequestChannel).send({embed: new Discord.MessageEmbed().setTitle("Song Request By " + context.username).setDescription("Song is\n" + words.join(" ")).setFooter("Make sure to ban if inappropriate or they spammed!")});
+        client.say(target, "Request Sent");
+      }
+    }
+  }
+
+  function onConnectedHandler (addr, port) {
+    console.log(`* Connected to ${addr}:${port}`);
+  }
+}
+
+
+
+
+bot.login('bot token here'); //discord bot token goes here (required)
+
+
+
+
+
+
+
 
 var queue = new Map(); //the huge list of server queues
 
-//word of note, some commands use a substr to get arguments with multiple spaces. im aware thats not the best method, but i does save space and im not really going to change the command anytime soon
+
 
 bot.on('message', message =>{
-    queue.forEach(value => { //if someone disconnects a bot with the right click menu, it wont do the proper delete of the queue, so every time someone sends a message, itll delete it
+
+
+    queue.forEach(value => {
       if(!message.guild.me.voice.channel){
         if(value.guildID == message.guild.id){
+          console.log("Deleted queue due to manual disconnect: " + value.guildName + " (" + value.guildID + ")");
           queue.delete(message.guild.id);
         }
       }
@@ -64,10 +166,31 @@ bot.on('message', message =>{
     const serverQueue = queue.get(message.guild.id);
 
     if(command.startsWith("alexa, play ")){
+      if(command.startsWith("alexa, play https://youtube") || command.startsWith("alexa, play https://youtu.be")){
+        playurl(message, serverQueue);
+      }
+      else if(command.startsWith("alexa, play https://open.spotify.com/playlist/")){
+        if(enableSpotify){
+          spotifyPlaylist(message, serverQueue);
+        }
+        else{
+          message.reply("Sorry, the bot owner doesn't have spotify enabled");
+        }
+      }
+      else if(command.startsWith("alexa, play https://open.spotify.com/track/")){
+        if(enableSpotify){
+          spotifyTrack(message, serverQueue);
+        }
+        else{
+          message.reply("Sorry, the bot owner doesn't have spotify enabled");
+        }
+      }
+      else{
         play(message, serverQueue);
+      }
     }
-    if(command.startsWith("alexa, playurl")){
-      playurl(message, serverQueue);
+    if(command.startsWith("alexa, search")){
+        search(message, serverQueue);
     }
     if(command.startsWith("alexa, dc")){
         dc(message, serverQueue);
@@ -85,15 +208,30 @@ bot.on('message', message =>{
         shuffleSongs(message, serverQueue);
     }
     if(command.startsWith("alexa, create playlist")){
+      if(enableMysql){
         createPlaylist(serverQueue, message);
+      }
+      else{
+        message.reply("Sorry, the bot owner doesn't have playlists enabled");
+      }
     }
     if(command.startsWith("alexa, playlist")){
-        playPlaylist(serverQueue, message)
+      if(enableMysql){
+        playPlaylist(serverQueue, message);
+      }
+      else{
+        message.reply("Sorry, the bot owner doesn't have playlists enabled");
+      }
     }
     if(command.startsWith("alexa, find")){
+      if(enableMysql){
         findPlaylists(message);
+      }
+      else{
+        message.reply("Sorry, the bot owner doesn't have playlists enabled");
+      }
     }
-    if(command.startsWith("alexa, remove")){
+    if(command.startsWith("alexa, remove") || command.startsWith("alexa, eliminate")){
         remove(message, serverQueue);
     }
     if(command.startsWith("alexa, swap")){
@@ -102,26 +240,36 @@ bot.on('message', message =>{
     if(command.startsWith("alexa, pause")){
         pause(message, serverQueue);
     }
-    if(command.startsWith("alexa, resume")){
+    if(command.startsWith("alexa, resume") || command.startsWith("alexa, keep the ball") || command.startsWith("alexa, the ball") || command.startsWith("alexa, unpause")){
         resume(message, serverQueue);
     }
     if(command.startsWith("alexa, vol")){
         volume(message, serverQueue);
     }
     if(command.startsWith("alexa, info")){
+      if(enableMysql){
         playlistInfo(message);
+      }
+      else{
+        message.reply("Sorry, the bot owner doesn't have playlists enabled");
+      }
     }
     if(command.startsWith("alexa, update playlist")){
-      updatePlaylist(serverQueue, message);
+      if(enableMysql){
+        updatePlaylist(serverQueue, message);
+      }
+      else{
+        message.reply("Sorry, the bot owner doesn't have playlists enabled");
+      }
     }
-    if(command.startsWith("alexa, yt")){ //todo: update with the new yt searcher
-        ytplaylist(serverQueue, message);
-    }
-    if(command.startsWith("alexa, auto")){ //todo: update with the new yt searcher
-      autogen(serverQueue, message);
-    }
-    if(command.startsWith("alexa, seek")){ //sometimes works? its really weird how it works
+    if(command.startsWith("alexa, seek")){
       setSeek(message, serverQueue);
+    }
+    if(command.startsWith("alexa, loop song")){
+      loopSong(message, serverQueue);
+    }
+    if(command.startsWith("alexa, loop queue")){
+      loopQueue(message, serverQueue);
     }
     if(command.startsWith("alexa, repeat song")){
       repeatSong(message, serverQueue);
@@ -141,84 +289,185 @@ bot.on('message', message =>{
         message.channel.send({
           embed: new Discord.MessageEmbed().setTitle("Help")
           .setColor("#df12df")
-          .setDescription("alexa, help - The help section\nalexa, play - searches YouTube with the query\nalexa, playurl - plays a url from YouTube, much faster than alexa, play and doesn't use my quota\nalexa, dc - Disconnect from voice channel\nalexa, skip - skips the song\nalexa, np - shows what playing right now\nalexa, queue [page number] - shows the queue. Put the page number if the queue is long than 10\nalexa, shuffle - shuffles the songs\nalexa, create playlist [playlist name] - creates a new playlist that anyone in the guild and you can use, songs taken from queue\nalexa, playlist [playlist ID] - adds all songs in a playlist to the queue with the playlist ID\nalexa, find [g | m] - finds playlist from your guild (g) or from you (m)\nalexa, info [playlist ID] [page]- shows info about playlist\nalexa, update playlist [ID] - updates your playlist with the songs in the queue\nalexa, remove [index] - removes a song from the queue with the index\nalexa, swap [index 1] [index 2] - swaps 2 songs in a queue by their index\nalexa, pause - pause\nalexa, resume - resume\nalexa, vol - set the volume (0-100)\nalexa, auto [query] - auto generates the top 50 search results from YouTube\nalexa, repeat song [index] [amount] - repeats a song/video from the queue [amount] times.") //wow why did i make this all in one line?!?!!? its called laziness, i started it on one line so i continued. i am only making the line longer with this comment...
+          .setDescription(`alexa, help - The help section
+          \nalexa, play - searches YouTube with the query, or plays a link
+          \n*new!* alexa, search - searches by a query, top 5 search results that you can pick from and add to queue
+          \nalexa, dc - Disconnect from voice channel
+          \nalexa, skip - skips the song
+          \nalexa, np - shows what playing right now
+          \nalexa, queue [page number] - shows the queue. Put the page number if the queue is long than 10
+          \nalexa, shuffle - shuffles the songs
+          \nalexa, create playlist [playlist name] - creates a new playlist that anyone in the guild and you can use, songs taken from queue
+          \nalexa, playlist [playlist ID] - adds all songs in a playlist to the queue with the playlist ID
+          \nalexa, find [g | m] - finds playlist from your guild (g) or from you (m)
+          \nalexa, info [playlist ID] [page]- shows info about playlist
+          \nalexa, update playlist [ID] - updates your playlist with the songs in the queue
+          \nalexa, remove [index] - removes a song from the queue with the index
+          \nalexa, swap [index 1] [index 2] - swaps 2 songs in a queue by their index
+          \nalexa, pause - pause\nalexa, resume - resume
+          \nalexa, vol - set the volume (0-100)
+          \nalexa, auto [query] - auto generates the top 50 search results from YouTube
+          \nalexa, repeat song [index] [amount] - repeats a song/video from the queue [amount] times.
+          \nalexa, loop song - loops the current song thats playing, toggle it with this command.
+          \nalexa, loop queue - loops the queue, toggle with command
+          \nalexa, invite - invite to bot, although once I'm in 20 servers, no more invites! (im broke)`)
           })
+    }
+
+
+
+    if(command.startsWith("alexa, listen")){
+      if(enableVoice){
+        if(serverQueue){
+          message.reply("listening");
+          stt(serverQueue, message);
+        }
+        else{
+          message.reply("get in a vc with some music");
+        }
+      }
+      else{
+        message.reply("Sorry, the bot owner doesn't have voice commands enabled");
+      }
     }
 
 });
 
-function ytplaylist(squeue, message){ //gets the first 50 videos from a yt playlist, its really slow and i should definitely update it
-  var voicec;
-  if (message.member.voice.channel) {
-      voicec = message.member.voice.channel;
-  }
-  else{
-      message.reply("How can I play despacito if you despaciaren't in a voice chat");
-      return 0;
-  }
-  const permissions = voicec.permissionsFor(message.client.user);
-if (!permissions.has('CONNECT') || !permissions.has('SPEAK')) {
-  return message.channel.send('How am I supposed to play despacito if I despacican\'t join or speak in a voice chat?');
-}
-var pid = message.content.split(" ")[2];
-youtube.playlistItems.list({
-  part: "snippet, contentDetails",
-  playlistId: pid,
-  maxResults: 50
-}).then(async function(response) {
-          var tempsongs = [];
-          message.reply("Adding songs into queue. Since this is a YouTube playlist, it might take much longer than usual while the data that is needed will be downloaded");
-          for(var i = 0; i < response.data.items.length; i++){
-            if(response.data.items[i].snippet.title == "Deleted video"){
-              i++;
-            }
-            var id = response.data.items[i].contentDetails.videoId;
-           // id = id.replace(/^[a-zA-Z0-9-_]{11}$/, "");
-            const songInfo = await ytdl.getBasicInfo("https://youtube.com/watch?v=" + id).catch(console.log("ytdl do be stupid"));
+function stt(serverQueue, message) {
+    var model = new deepspeech.Model("model.pbmm"); //your model file
+    model.enableExternalScorer("model.scorer"); //your scorer file 
+    const channels = 2;
+    let stream = model.createStream();
+    var readable = serverQueue.connection.receiver.createStream(message.author, { mode: "pcm", end: "silence"});
+    var chunks = Buffer.alloc(0);
 
-            const song = {
-                title: songInfo.videoDetails.title,
-                url: "https://youtube.com/watch?v=" + id,
-                img: songInfo.player_response.videoDetails.thumbnail.thumbnails[songInfo.player_response.videoDetails.thumbnail.thumbnails.length-1].url,
-                len: songInfo.videoDetails.lengthSeconds,
-                id: songInfo.videoDetails.videoId
-            };
-           tempsongs.push(song);
-          
+
+
+    var ended = false;
+    var numSoundedChunks = 0;
+
+    readable.on('data', chunk => {
+        numSoundedChunks++;
+        if(numSoundedChunks > 250){
+          readable.end();
+          readable.destroy();
+          console.log("ending");
+        }
+        chunks = Buffer.concat([chunks, chunk], chunks.length + chunk.length);
+    });
+    readable.on('close', () => {
+      if(ended == false){
+      var wav = require('wav');
+      var writer = new wav.FileWriter("./voice/" + message.id + '.wav', {
+        sampleRate: 48000,
+        channels: 2,
+        bitDepth: 16
+      });
+      writer.write(chunks); //todo make sure this is not sync
+      writer.end();
+      setTimeout(() => {
+        fs.readFile("./voice/" + message.id + ".wav", (err, data) => {
+          if (err) {
+            console.error(err)
+            return
           }
+        const desiredSampleRate = model.sampleRate();
+        const wavfile = require("wav-file-info");
+          wavfile.infoByFilename("./voice/" + message.id + '.wav', function(err, info){
+              if (err) return;
+            //  console.log(info);
+            let audioStream = new MemoryStream();
+            bufferToStream(data).
+              pipe(Sox({
+                input: {
+                  volume: 0.5
+                },
+                global: {
+                  'no-dither': true,
+                },
+                output: {
+                  bits: 16,
+                  rate: desiredSampleRate,
+                  channels: 1,
+                  encoding: 'signed-integer',
+                  endian: 'little',
+                  compression: 0.0,
+                  type: 'raw'
+                }
+              })).
+              pipe(audioStream);
 
-  if (!squeue) {
-    const queueConstruct = {
-        channel: message.channel,
-        voiceChannel: voicec,
-        connection: null,
-        songs: [],
-        volume: 0.6,
-        playing: true,
-        seek: 0,
-        guildName: message.guild.name,
-        guildID: message.guild.id
-    };
+            audioStream.on('finish', async () => {
+              let audioBuffer = audioStream.toBuffer();
+              let result = model.stt(audioBuffer);
+              deepspeech.FreeModel(model);
+              console.log("result:" + result);
+              if (result.search("play") != -1 || result.search("lay") != -1) {
 
-    queue.set(message.guild.id, queueConstruct);
+                var songToPlay = result.substr(result.indexOf("lay") + 3);
+              const say = require("say");
+                message.content = "alexa, play " + songToPlay;
+                message.reply("hopefully i got it right, here's what I translated: `" + songToPlay + "`");
+                play(message, serverQueue);
+              }
+              else if (result.search("skip") != -1 || result.search("next") != -1) {
+                skip(message, serverQueue);
+              }
+              else if (result.search("shuffle") != -1 || result.search("mix it") != -1 || result.search("random") != -1){
+                shuffleSongs(message, serverQueue);
+              }
+              else if(result.search("remove") != -1 || result.search("go back") != -1){
+                serverQueue.songs.pop();
+                message.reply("ok ok i guess i fucked up ok im not perfect");
+              }
+              else if(result.search("disconnect") != -1 || result.search("leave") != -1){
+                dc(message, serverQueue);
+                message.reply("ight imma head out");
+              }
+              else if(result.search("loop") != -1){
+                loopSong(message, serverQueue);
+                message.reply("toggle looping song");
+              }
+              if(serverQueue.listening == true){
+                stt(serverQueue, message);
+              }
+              else{
+                console.log("stopped");
+                return;
+              }
 
-    queueConstruct.songs = queueConstruct.songs.concat(tempsongs);
-
-    try {
-        var connection = await voicec.join();
-        queueConstruct.connection = connection;
-        playSong(message.guild.id, queueConstruct.songs[0]);
-    } catch (err) {
-        console.log(err);
-        queue.delete(message.guild.id);
-        return message.channel.send(err);
+          });
+        });
+      });
+      }, 1500);
     }
+    });
+}
+
+function bufferToStream(buffer) {
+  var stream = new Duplex();
+  stream.push(buffer);
+  stream.push(null);
+  return stream;
+}
+
+
+
+function spotifyGetToken() {
+  if(enableSpotify){
+    spotifyApi.clientCredentialsGrant().then(
+      function (data) {
+        console.log('The access token expires in ' + data.body['expires_in']);
+        console.log('The access token is ' + data.body['access_token']);
+
+        // Save the access token so that it's used in future calls
+        spotifyApi.setAccessToken(data.body['access_token']);
+      },
+      function (err) {
+        console.log('Something went wrong when retrieving an access token', err);
+      }
+    );
   }
-  else{
-     squeue.songs = squeue.songs.concat(tempsongs);
-  }
-  message.channel.send("Added songs to queue!");
-}).catch( console.log("meh"));
 }
 
 async function play(message, squeue){
@@ -238,7 +487,7 @@ async function play(message, squeue){
     let command = message.content.toLowerCase();
     let query = command.substr(12);
     var yid = "";
-    if(query == "despacito"){ //if its despacito, you dont have to search
+    if(query == "despacito"){
       yid = "kJQP7kiw5Fk";
       processPlay(squeue, "https://youtube.com/watch?v=kJQP7kiw5Fk", message, voicec);
     }
@@ -250,7 +499,7 @@ async function play(message, squeue){
             var vid = "https://www.youtube.com/watch?v=" + yid;
           }
           else{
-            message.reply("The query did not give any results. Use alexa, playurl {url} for youtube links.");
+            message.reply("The query did not give any results. If it's a youtube link, make sure it's in this format `https://www.youtube.com/watch?v=dQw4w9WgXcQ`.\nIf it's a spotify playlist, use this format `https://open.spotify.com/playlist/...`.\nIf it's a spotify track, use this format `https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT?si=e7e9bf391db94cff`");
             return;
           }
 
@@ -281,7 +530,7 @@ function playurl(message, squeue, url = ""){
       return message.channel.send('How am I supposed to play despacito if I despacican\'t join or speak in a voice chat?');
     }
     if(url == ""){
-       var vid = message.content.substr(15);
+       var vid = message.content.substr(12);
     }
     else{
        var vid = url; 
@@ -298,9 +547,10 @@ async function processPlay(squeue, vid, message, voicec){
     return;
   }
   console.log("processPlay, vid: " + vid);
-  const songInfo = await ytdl.getBasicInfo(vid); //sometimes error, could not find playing config, although much rarer with the new ytdl-core update (rip ytdl)
+  //playerConfig = false; //check if failed to fetch
+  const songInfo = await ytdl.getBasicInfo(vid); //sometimes error, could not find playing config
 
-  const song = { //get song info
+  const song = {
       title: songInfo.videoDetails.title,
       url: vid,
       img: songInfo.player_response.videoDetails.thumbnail.thumbnails[songInfo.player_response.videoDetails.thumbnail.thumbnails.length-1].url,
@@ -322,7 +572,9 @@ async function processPlay(squeue, vid, message, voicec){
           vol: 0.6,
           seek: 0,
           guildName: message.guild.name,
-          guildID: message.guild.id
+          guildID: message.guild.id,
+          loop: 0,
+          listening: true
       };
 
       queue.set(message.guild.id, queueConstruct);
@@ -348,15 +600,16 @@ async function processPlay(squeue, vid, message, voicec){
 
 function skip(message, squeue) {
 	if (!message.member.voice.channel) return message.channel.send('Trying to skip the music outside of the voice chat? That\'s not very cash money of you.');
-  if (!squeue) return message.channel.send('no songs to skip (i.e. last song in queue)');
+  if (!squeue) return message.channel.send('no songs to skip (ie last song in queue)');
   if(squeue){
     if(squeue.dispatcher){
+      console.log("fuck me");
      squeue.dispatcher.end();
     }
   }
 }
 
-function dc(message, squeue) { //most likely a good idea to check if the user is actually in the vc of the bot
+function dc(message, squeue) {
     if (!message.member.voice.channel) return message.channel.send('Trying to stop the music outside of the voice chat? That\'s not very cash money of you.');
     if(squeue){
       squeue.songs = [];
@@ -364,6 +617,7 @@ function dc(message, squeue) { //most likely a good idea to check if the user is
       squeue.dispatcher.end();
       }
       squeue.voiceChannel.leave();
+      squeue.listening = false;
     }
     queue.delete(message.guild.id);
 }
@@ -401,9 +655,9 @@ function playSong(guild, song, seeksec = 0) {
             serverQueue.voiceChannel.leave();
         }
       }
-	queue.delete(guild);
-	return;
-    }
+		queue.delete(guild);
+		return;
+  }
   if(!song.url || song.url === undefined || song.url == "" || song.url == 0 || typeof song.url == undefined || typeof song.url === undefined){
     serverQueue.channel.send("For some reason, it won't let me play this song right now");
     return;
@@ -416,12 +670,19 @@ function playSong(guild, song, seeksec = 0) {
     return;
   }
   console.log("Seek Seconds: " + seeksec + "s");
-	serverQueue.dispatcher = serverQueue.connection.play(ytdl(url, {quality: 'highestaudio', highWaterMark: 1<<25, begin: seeksec + "s"}), {highWaterMark: 1}) //the seeksec is what the seek command is used for, since this is the only place you can actually seek, barely works
+	serverQueue.dispatcher = serverQueue.connection.play(ytdl(url, {quality: 'highestaudio', highWaterMark: 1<<25, begin: seeksec + "s"}), {highWaterMark: 1})
 		.on('finish', () => {
       if(serverQueue.songs[0]){
-       console.log('Music ended! Song was: ' + serverQueue.songs[0].url); 
+       console.log('Music ended! Song was: ' + serverQueue.songs[0].url + " on " + serverQueue.guildName + " (" + serverQueue.guildID + ")");
       }
-      serverQueue.songs.shift();
+      if(serverQueue.loop == 0){
+        serverQueue.songs.shift();
+      }
+      if(serverQueue.loop == 2){
+        var songplaceholder = serverQueue.songs[0];
+        serverQueue.songs.shift();
+        serverQueue.songs.push(songplaceholder);
+      }
       playSong(guild, serverQueue.songs[0], serverQueue.seek);
       serverQueue.seek = 0;
       if(serverQueue.songs[0]){
@@ -430,12 +691,13 @@ function playSong(guild, song, seeksec = 0) {
 		})
 		.on('error', error => {
       console.log("error on playSong: " + error);
+   //   serverQueue.channel.send("There seems to be an error on my part: ```" + error + "``` If you want to, you can report this to the alexa, play despacito's Support Server. You can join by typing the command `alexa, support server`\n\nSkipping song...");
       serverQueue.dispatcher.end();
     });
     if(serverQueue.vol == undefined){
       serverQueue.vol = 0.6;
     }
-    serverQueue.dispatcher.setVolume(serverQueue.vol); //i really dont know why setting the volume of the bot is paid for most music bots
+    serverQueue.dispatcher.setVolume(serverQueue.vol);
     if(!serverQueue.playing){
       serverQueue.playing = true;
       serverQueue.dispatcher.resume();
@@ -443,7 +705,7 @@ function playSong(guild, song, seeksec = 0) {
     
 }
 
-function setSeek(message, squeue){ //sets the seek by essentially duplicating the song so its next in queue, ending the song then setting the seek with ytdl
+function setSeek(message, squeue){
   if(!squeue){
     message.reply("Nothing in queue");
     return;
@@ -471,7 +733,7 @@ async function np(channel, squeue){
     if(squeue){
         if(squeue.songs){
           channel.send({
-            embed: new Discord.MessageEmbed().setTitle("Now Playing").setDescription(squeue.songs[0].title + "\n" + toTime(squeue.dispatcher.streamTime/1000) + " / " + toTime(squeue.songs[0].len)).setColor("#" + Math.floor(Math.random() * 255).toString(16) + Math.floor(Math.random() * 255).toString(16) + Math.floor(Math.random() * 255).toString(16)).setURL(squeue.songs[0].url).setThumbnail(squeue.songs[0].img).setFooter(squeue.songs.length-1 + " songs left in queue")
+            embed: new Discord.MessageEmbed().setTitle("Now Playing" + (squeue.loop == 1 ? " | Song On Loop" : (squeue.loop == 2 ? " | Queue On Loop" : ""))).setDescription(squeue.songs[0].title + "\n" + toTime(squeue.dispatcher.streamTime/1000) + " / " + toTime(squeue.songs[0].len)).setColor("#" + Math.floor(Math.random() * 255).toString(16) + Math.floor(Math.random() * 255).toString(16) + Math.floor(Math.random() * 255).toString(16)).setURL(squeue.songs[0].url).setThumbnail(squeue.songs[0].img).setFooter(squeue.songs.length-1 + " songs left in queue")
           });
         }
     }
@@ -503,7 +765,7 @@ async function showQueue(message, squeue, download = 1){
         }
         
         message.channel.send({
-          embed: new Discord.MessageEmbed().setTitle("Queue: " + squeue.songs.length + " songs").setDescription(messagetosend).setFooter("Page " + page + "/" + Math.ceil(squeue.songs.length/10)).setColor("#24dfdf")
+          embed: new Discord.MessageEmbed().setTitle("Queue: " + squeue.songs.length + " songs" + (squeue.loop == 1 ? " | Current Song On Loop" : (squeue.loop == 2 ? " | Queue On Loop" : ""))).setDescription(messagetosend).setFooter("Page " + page + "/" + Math.ceil(squeue.songs.length/10)).setColor("#24dfdf")
         });
     }
     else{
@@ -534,11 +796,12 @@ function toTime(seconds){
 
 
 function createPlaylist(squeue, message){
+  if(enableMysql){
    if (!squeue) {
       message.reply("There are no songs in the queue to make a playlist out of");
    }
    else{
-      let title = message.content.substr(23); 
+      let title = message.content.substr(23);
       title = title.replace(/\W/g, ' ');
       if(title == ""){ message.reply("Title is blank! Add your title after the command"); return; }
       con.query("INSERT INTO playlists (guild, creator, title, videos) VALUES ('" + message.guild.id + "', '" + message.author.id + "', \"" + title + "\", \"" + implodeSongs(squeue.songs) + "\");", function (err, result){
@@ -546,9 +809,11 @@ function createPlaylist(squeue, message){
         message.reply("Created new playlist `" + title + "`. Use the command `alexa, playlist " + result.insertId + "`");
       });
    }
+  }
 }
 
 function playPlaylist(squeue, message){
+  if(enableMysql){
   var voicec;
   if (message.member.voice.channel) {
       voicec = message.member.voice.channel;
@@ -561,11 +826,19 @@ function playPlaylist(squeue, message){
 if (!permissions.has('CONNECT') || !permissions.has('SPEAK')) {
   return message.channel.send('How am I supposed to play despacito if I despacican\'t join or speak in a voice chat?');
 }
-    var pid = message.content.substr(16);
+    var shuffle = false;
+    var pid = "not a playlist";
+    if(message.content.split(" ").length > 2){
+      var pid = message.content.split(" ")[2];
+    }
+    if(message.content.split(" ").length > 4){
+      shuffle = true;
+    }
     if(Number.isInteger(parseInt(pid))){
 
     con.query("SELECT * FROM playlists WHERE id = " + pid + ";", async function (err, result){
       if(result.length > 0){
+      //  if(parseInt(result[0].guild) == message.guild.id || message.author.id == parseInt(result[0].creator)){
           var ids = result[0].videos.split("*");
           message.channel.send("Adding songs to queue");
           var tempsongs = [];
@@ -591,12 +864,14 @@ if (!permissions.has('CONNECT') || !permissions.has('SPEAK')) {
                   playing: true,
                   seek: 0,
                   guildName: message.guild.name,
-                  guildID: message.guild.id
+                  guildID: message.guild.id,
+                  loop: 0,
+                  listening: true
               };
 
               queue.set(message.guild.id, queueConstruct);
-
               queueConstruct.songs = queueConstruct.songs.concat(tempsongs);
+              queueConstruct.songs = queueConstruct.songs.sort(() => Math.random() - 0.5);
 
               try {
                   var connection = await voicec.join();
@@ -612,6 +887,10 @@ if (!permissions.has('CONNECT') || !permissions.has('SPEAK')) {
                squeue.songs = squeue.songs.concat(tempsongs);
             }
             message.channel.send("Added songs to queue!");
+      //  }
+      //  else{
+      //      message.reply("This playlist isn't from your guild/server or this playlist is not yours and isn't from this guild/server.");
+       // }
       }
       else{
         message.reply("Not a playlist ID");
@@ -621,19 +900,22 @@ if (!permissions.has('CONNECT') || !permissions.has('SPEAK')) {
     else{
       message.reply("Not a playlist ID");
     }
+  }
 }
 
 function implodeSongs(songs){
   var str = "";
 
   for(var i = 0; i < songs.length; i++){
-    str += songs[i].title + "@" + songs[i].url + "@" + songs[i].img + "@" + songs[i].len + "@" + songs[i].id;
+    
+    str += songs[i].title.replace(/([\uE000-\uF8FF]|\uD83C[\uDF00-\uDFFF]|\uD83D[\uDC00-\uDDFF])/g, '') + "@" + songs[i].url + "@" + songs[i].img + "@" + songs[i].len + "@" + songs[i].id;
     str += "*";
   }
   return mysql_real_escape_string(str);
 }
 
 function findPlaylists(message){
+  if(enableMysql){
     let type = message.content.split(" ")[2];
     if(type == undefined){
       type = "guild";
@@ -711,6 +993,7 @@ function remove(message, squeue){
     }
   }
 }
+}
 
 
 function swapsong(message, squeue){
@@ -753,7 +1036,7 @@ function swapsong(message, squeue){
 }
 
 
-function mysql_real_escape_string (str) { //pretty cool stackoverflow code right here
+function mysql_real_escape_string (str) { 
   return str.replace(/[\0\x08\x09\x1a\n\r"'\\\%]/g, function (char) {
       switch (char) {
           case "\0":
@@ -800,6 +1083,7 @@ function volume(message, squeue){
 }
 
 async function playlistInfo(message){
+  if(enableMysql){
     var id = message.content.split(" ")[2];
     if(Number.isInteger(parseInt(id))){
       con.query("SELECT * FROM playlists WHERE id = " + id + ";", async function (err, result){
@@ -823,13 +1107,13 @@ async function playlistInfo(message){
             page = parseInt(page);
 
             messagetosend = "";
-            for(var i = parseInt(page-1)*10-(page == 1 ? 0 : 1); i < (songs.length-1 > 10*page ? 10*page : songs.length-1); i++){ //the absolute best way to set the range of i by page
+            for(var i = parseInt(page-1)*10-(page == 1 ? 0 : 1); i < (songs.length-1 > 10*page ? 10*page : songs.length-1); i++){
                 songinfo = songs[i].split("@");
                 messagetosend += i+1 + ": " + songinfo[0] + " (" + toTime(songinfo[3]) + ") (" + songinfo[1] + ")\n\n";
             }
             var info = await bot.users.cache.get(result[0].creator);
             if(!info){
-              info = {username: "(username could not be cached)"}; //sometimes, the username is not in the bot cache as discord.js v12 made *everything* a cache and you cant look up a username anymore
+              info = {username: "(username could not be cached)"};
             }
             message.channel.send({
               embed: new Discord.MessageEmbed().setTitle(result[0].title + " by " + info.username).setDescription(messagetosend).setFooter("Page " + page + "/" + Math.ceil(songs.length/10)).setColor("#ffff00")
@@ -847,10 +1131,12 @@ async function playlistInfo(message){
     else{
       message.reply("Not a playlist ID");
     }
+  }
 }
 
 
 function updatePlaylist(squeue, message){
+  if(enableMysql){
   if (!squeue) {
     message.reply("There are no songs in the queue to make a playlist out of");
  }
@@ -877,90 +1163,9 @@ function updatePlaylist(squeue, message){
     }
     else{
       message.reply("Not a playlist ID");
-    }
-    
+    }  
  }
 }
-
-
-
-//auto generate a playlist, take the top 50 results of a search result and then put it in the queue
-function autogen(squeue, message){
-  var voicec;
-  if (message.member.voice.channel) {
-      voicec = message.member.voice.channel;
-  }
-  else{
-      message.reply("How can I play despacito if you despaciaren't in a voice chat");
-      return 0;
-  }
-  const permissions = voicec.permissionsFor(message.client.user);
-if (!permissions.has('CONNECT') || !permissions.has('SPEAK')) {
-  return message.channel.send('How am I supposed to play despacito if I despacican\'t join or speak in a voice chat?');
-}
-var query = message.content.substr(12);
-youtube.search.list({
-  part: "snippet",
-  q: query,
-  maxResults: 50
-}).then(async function(response) {
-          var tempsongs = [];
-          message.reply("Adding songs into queue. Since I'm auto generating this, it might take much longer than usual while the data that is needed will be downloaded");
-          for(var i = 0; i < response.data.items.length; i++){
-            if(response.data.items[i].snippet.title == "Deleted video"){
-              i++;
-            }
-            var id = response.data.items[i].id.videoId;
-            if(id === undefined || id === ""){
-              id = "dQw4w9WgXcQ"; //if the id somehow just didn't exist, this is the proper way to signal that
-            }
-            else{
-            const songInfo = await ytdl.getBasicInfo("https://youtube.com/watch?v=" + id).catch(console.log("ytdl do be stupid"));
-
-            const song = {
-                title: songInfo.videoDetails.title,
-                url: "https://youtube.com/watch?v=" + id,
-                img: songInfo.player_response.videoDetails.thumbnail.thumbnails[songInfo.player_response.videoDetails.thumbnail.thumbnails.length-1].url,
-                len: songInfo.videoDetails.lengthSeconds,
-                id: songInfo.videoDetails.videoId
-            };
-           tempsongs.push(song);
-          }
-          
-          }
-
-  if (!squeue) {
-    const queueConstruct = {
-        channel: message.channel,
-        voiceChannel: voicec,
-        connection: null,
-        songs: [],
-        volume: 5,
-        playing: true,
-        seek: 0,
-        guildName: message.guild.name,
-        guildID: message.guild.id
-    };
-
-    queue.set(message.guild.id, queueConstruct);
-
-    queueConstruct.songs = queueConstruct.songs.concat(tempsongs);
-
-    try {
-        var connection = await voicec.join();
-        queueConstruct.connection = connection;
-        playSong(message.guild.id, queueConstruct.songs[0]);
-    } catch (err) {
-        console.log(err);
-        queue.delete(message.guild.id);
-        return message.channel.send(err);
-    }
-  }
-  else{
-     squeue.songs = squeue.songs.concat(tempsongs);
-  }
-  message.channel.send("Added songs to queue!");
-}).catch( /* idk error stuff, never got to this point */ );
 }
 
 
@@ -976,6 +1181,9 @@ function repeatSong(message, squeue){
         if(parseInt(repeatS) > 0){
           if(Number.isInteger(parseInt(index))){
             if(squeue.songs[index-1]){
+              if(parseInt(repeatS) > 1000){
+                repeatS = "1000";
+              }
               for(var i = 0; i < parseInt(repeatS); i++){
                 squeue.songs.push(squeue.songs[index-1]);
               }
@@ -997,4 +1205,254 @@ function repeatSong(message, squeue){
         message.reply("Repeat number isn't a number");
       }
     }
+}
+
+
+function loopSong(message, squeue){
+  if(!squeue){
+    message.channel.send("Nothing in queue to loop");
+  }
+  else{
+    if(squeue.loop != 0){
+      squeue.loop = 0;
+      message.channel.send("Stopped looping song");
+    }
+    else{
+      squeue.loop = 1;
+      message.channel.send("Looping song: " + squeue.songs[0].title);
+    }
+  }
+}
+
+
+function loopQueue(message, squeue){
+  if(!squeue){
+    message.channel.send("Nothing in queue to loop");
+  }
+  else{
+    if(squeue.loop != 0){
+      squeue.loop = 0;
+      message.channel.send("Stopped looping queue");
+    }
+    else{
+      squeue.loop = 2;
+      message.channel.send("Looping queue");
+    }
+  }
+}
+
+
+function search(message, squeue){
+  var voicec;
+  if (message.member.voice.channel) {
+      voicec = message.member.voice.channel;
+  }
+  else{
+      message.reply("How can I play despacito if you despaciaren't in a voice chat");
+      return 0;
+  }
+  const permissions = voicec.permissionsFor(message.client.user);
+if (!permissions.has('CONNECT') || !permissions.has('SPEAK')) {
+  return message.channel.send('How am I supposed to play despacito if I despacican\'t join or speak in a voice chat?');
+}
+
+  let command = message.content.toLowerCase();
+  let query = command.substr(13);
+  var yid = "";
+  if(query == "despacito"){
+    yid = "kJQP7kiw5Fk";
+    processPlay(squeue, "https://youtube.com/watch?v=kJQP7kiw5Fk", message, voicec);
+  }
+  else{
+   yt(query).then(result => {
+      if(result){
+        if(result[0]){
+          yid = result[0].identifier;
+          var vid = "https://www.youtube.com/watch?v=" + yid;
+
+          var i = 0;
+          var messagetosend = "";
+          while(result[i] && i < 5){
+            messagetosend += (i == 0 ? "Results:\n" : "") + (i+1) + ": " + result[i].title + " (" + toTime(result[i].length.sec) + ") (" + result[i].uri + ")\n\n";
+            i++;
+          }
+          messagetosend += "\n\nSelect one of these by typing in the number";
+          message.channel.send({
+            embed: new Discord.MessageEmbed().setTitle("Search Results for " + query).setDescription(messagetosend)
+          });
+          const filter = m => message.author.id === m.author.id;
+          message.channel.awaitMessages(filter, { time: 60000, max: 1, errors: ['time'] })
+								.then(messages => { 
+                  if(isNumber(parseInt(messages.first().content))){
+                    vid = result[parseInt(messages.first().content) - 1].uri;
+                    processPlay(squeue, vid, message, voicec);
+                  }
+                  else{
+                    message.reply("Make sure to input a number");
+                  }
+                });
+
+        }
+        else{
+          message.reply("The query did not give any results. Use alexa, playurl {url} for youtube links.");
+          return;
+        }
+
+        if(!vid){
+          message.reply("seems to be an error, the link was never provided to me from youtube search! not your fault, completely youtube's fault");
+          return;
+        }
+        
+        
+      }
+    });
+  }
+}
+
+
+function spotifyPlaylist(message, squeue){
+  if(enableSpotify){
+  spotifyApi.resetAccessToken();
+  spotifyApi.clientCredentialsGrant().then(d => {
+    spotifyApi.setAccessToken(d.body['access_token'])
+    setTimeout(() => {
+      var pid = message.content.substr("alexa, play https://open.spotify.com/playlist/".length);
+      if(pid.indexOf("?")){
+        pid = pid.substr(0, pid.indexOf("?"));
+      }
+      console.log(pid);
+      var voicec;
+      if (message.member.voice.channel) {
+          voicec = message.member.voice.channel;
+      }
+      else{
+          message.reply("How can I play despacito if you despaciaren't in a voice chat");
+          return 0;
+      }
+      const permissions = voicec.permissionsFor(message.client.user);
+      if (!permissions.has('CONNECT') || !permissions.has('SPEAK')) {
+        return message.channel.send('How am I supposed to play despacito if I despacican\'t join or speak in a voice chat?');
+      }
+
+      message.reply("Since this is loading data one by one from youtube (because I can't actually stream from spotify), this might take a while");
+      spotifyApi.getPlaylist(pid).then(async data => {
+        var tempsongs = [];
+        for(var i = 0; i < data.body.tracks.items.length; i++){
+          console.log(data.body.tracks.items[i].track.name + " " + data.body.tracks.items[i].track.artists[0].name);
+          console.log(i);
+          var query = data.body.tracks.items[i].track.name + " " + data.body.tracks.items[i].track.artists[0].name;
+          await yt(query).then(async result => {
+            if(result){
+              if(result[0]){
+                console.log(result[0]);
+                yid = result[0].identifier;
+                var vid = "https://www.youtube.com/watch?v=" + yid; 
+                const song = {
+                    title: result[0].title,
+                    url: result[0].uri,
+                    img: result[0].thumbnails[0].url,
+                    len: result[0].length.sec,
+                    id: yid
+                };
+                tempsongs.push(song);
+              }
+              else{
+                message.reply("The query did not give any results. If it's a youtube link, make sure it's in this format `https://www.youtube.com/watch?v=dQw4w9WgXcQ`.\nIf it's a spotify playlist, use this format `https://open.spotify.com/playlist/...`.\nIf it's a spotify track, use this format `https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT?si=e7e9bf391db94cff`");
+                return;
+              }
+    
+              if(!vid){
+                message.reply("seems to be an error, the link was never provided to me from youtube search! not your fault, completely youtube's fault");
+                return;
+              }
+              
+            }
+          }).catch(err => {
+            console.log(err);
+          });
+        }
+
+          if (!squeue) {
+            const queueConstruct = {
+                channel: message.channel,
+                voiceChannel: voicec,
+                connection: null,
+                songs: [],
+                volume: 0.6,
+                playing: true,
+                seek: 0,
+                guildName: message.guild.name,
+                guildID: message.guild.id,
+                loop: 0,
+                listening: true
+            };
+          
+            queue.set(message.guild.id, queueConstruct);
+          
+            queueConstruct.songs = queueConstruct.songs.concat(tempsongs);
+          
+            try {
+                var connection = await voicec.join();
+                queueConstruct.connection = connection;
+                playSong(message.guild.id, queueConstruct.songs[0]);
+            } catch (err) {
+                console.log(err);
+                queue.delete(message.guild.id);
+                return message.channel.send(err);
+            }
+          }
+          else{
+             squeue.songs = squeue.songs.concat(tempsongs);
+          }
+          message.channel.send("Added songs to queue!");
+          if(enableMysql){
+            message.reply("Since this took a while to create, would you like to create an alexa playlist to access it faster? (yes or no)");
+            const filter = m => message.author.id === m.author.id;
+            message.channel.awaitMessages(filter, { time: 60000, max: 1, errors: ['time'] })
+                  .then(messages => { 
+                    if(messages.first().content.startsWith("yes")){
+                      message.content = "alexa, create playlist " + data.body.name; 
+                      createPlaylist(queue.get(message.guild.id), message);
+                    }
+                    else{
+                      message.reply("Not creating a playlist, you can create a playlist any time with `alexa, create playlist {playlist name}`");
+                    }
+                  });
+          }
+
+
+      }, err => {
+        console.error(err);
+        message.reply("uh oh there was an error, check the spotify link! Make sure it's public!");
+      });
+    }, 500);
+  });
+}
+}
+
+
+
+
+function spotifyTrack(message, squeue){
+  if(enableSpotify){
+    spotifyApi.resetAccessToken();
+    spotifyApi.clientCredentialsGrant().then(d => {
+      spotifyApi.setAccessToken(d.body['access_token']);
+        var pid = message.content.substr("alexa, play https://open.spotify.com/track/".length);
+        if(pid.indexOf("?")){
+          pid = pid.substr(0, pid.indexOf("?"));
+        }
+        spotifyApi.getTrack(pid).then(data =>{
+            var query = data.body.name + " " + data.body.artists[0].name;
+            yt(query).then(result => {
+              if(result){
+                if(result[0]){
+                  message.content = "alexa, play " + result[0].uri;
+                  play(message, squeue);
+                }
+              }
+            });
+        });
+    });
+  }
 }

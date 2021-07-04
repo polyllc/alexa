@@ -17,7 +17,7 @@ Sure, many other bots have this, but those bots are closed source (how dare they
 
 # Commands
 - alexa, help - The help section
-- alexa, play - searches YouTube with the query
+- alexa, play - plays a link, spotify link or searches the top result on youtube
 - alexa, search - searches by a query, top 5 search results that you can pick from and add to queue
 - alexa, dc - Disconnect from voice channel
 - alexa, skip - skips the song
@@ -39,7 +39,7 @@ Sure, many other bots have this, but those bots are closed source (how dare they
 - alexa, repeat song [index] [amount] - repeats a song/video from the queue [amount] times.
 
 # Installation
-- You'll need the following packages: `ytdl-core`, `discord.js`, `simpleyt`, all of the packages need to be latest.
+- You'll need the following packages: `ytdl-core`, `discord.js`, `simpleyt`, `lodash`, all of the packages need to be latest.
 - You'll need a mysql server (since the mysql package is a bit outdated, you'll need to enable legacy support in the mysql server setup.), but if you don't care about playlist support, then you don't need this. If you don't care about playlists (which is why the MySQL server is needed), then just make sure that `const enableMysql` is set to false, it's true by default (line 12). 
 The mysql table structure is this: `CREATE TABLE playlists (id int NOT NULL AUTO_INCREMENT PRIMARY KEY, guild VARCHAR(50), creator VARCHAR(50), title text, videos mediumtext);`, just input that to your mysql console, and you'll be good to go (make sure to select your database first! `use mysql` or `use {database name}`). More explaination on the reasoning of the structure in the extra notes. 
 - If you want to have voice commands, make sure to have `deepspeech` and `sox-stream` also installed. You'll need a model and a scorer. You can get these files on the release page of deepspeech's github (https://github.com/mozilla/DeepSpeech/releases). You'll also have to have sox installed and make sure the PATH variable is set to sox's binaries (http://sox.sourceforge.net/). Otherwise, set `const enableVoice` to false

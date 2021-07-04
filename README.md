@@ -1,12 +1,24 @@
-# alexa-play-despacito
-alexa is now your own music bot, usually playing despacito. But in reality, alexa, play despacito is a fully featured music bot with lots of features that other music bots just don't have or are paid. Plus of course with the charm of alexa in discord. 
+# alexa
+alexa is now your own music bot, usually playing despacito. But in reality, alexa is a fully featured music bot with lots of features that other music bots just don't have or are paid. Plus of course with the charm of alexa in discord. 
 # Features
-Alexa has a wide variaty of features. You can create **playlists** (also called saved queues) to play the songs in your queue anytime you want without manaully inputting the songs again. You can search through playlists made on a guild or search your own. If a friend wants to show you a playlist, but isn't in the same server as you, you can just use their playlist ID. **Seek** functionality, although very experimental (if it works is up to the rng of the day), when it does work, it's a very nice feature if you just want to skip to a certain part of a video or song. And of course the regular commands of a music bot, play youtube links, remove indexes, skip, queue list, volume control (without paying! what a revelation), swap and more. 
+Alexa has a wide variaty of features. You can create **playlists** (also called saved queues) to play the songs in your queue anytime you want without manaully inputting the songs again. You can search through playlists made on a guild or search your own. If a friend wants to show you a playlist, but isn't in the same server as you, you can just use their playlist ID. **Seek** functionality, although very experimental (if it works is up to the rng of the day), when it does work, it's a very nice feature if you just want to skip to a certain part of a video or song. And of course the regular commands of a music bot, play youtube links, remove indexes, search youtube by query, skip, queue list, volume control (without paying! what a revelation), swap and more. 
+
+Wait did I mention
+# Voice Commands
+Yes yes, with state of the art technology (open source stuff that was free, thanks Mozilla!), alexa now has voice commands. Sure they aren't the best, but damn it, they work. You can have alexa play songs, skip, disconnect, loop and shuffle. Without even needing to type it in. So now you can game and listen to music, hands free. Plus with discord overlay, you can see what song alexa is playing when you skip!
+
+even 
+# Twitch Integration
+Chat asking you what song you're playing? Well they can just find out themselves using `!song` in twitch chat. They can also request songs that will be neatly sent to a channel in your server so you can play them or discard them. 
+
+plus 
+# Spotify
+Sure, many other bots have this, but those bots are closed source (how dare they), so now you can rest easy knowing that you're using an open source bot to listen to Spotify, well actually youtube, but still uses spotify to search the songs on youtube by the name of the song that you found on spotify, got it? Yeah, it's just spotify playlists and tracks, what else?
 
 # Commands
 - alexa, help - The help section
 - alexa, play - searches YouTube with the query
-- alexa, playurl - plays a url from YouTube, much faster than alexa, play
+- alexa, search - searches by a query, top 5 search results that you can pick from and add to queue
 - alexa, dc - Disconnect from voice channel
 - alexa, skip - skips the song
 - alexa, np - shows what's playing right now
@@ -22,14 +34,19 @@ Alexa has a wide variaty of features. You can create **playlists** (also called 
 - alexa, pause - pause
 - alexa, resume - resume
 - alexa, vol - sets the volume (0-100)
-- alexa, auto [query] - auto generates the top 50 search results from YouTube (uses old search method, needs ytapiv3 key)
+- alexa, loop song - loops the current song thats playing, toggle it with this command.
+- alexa, loop queue - loops the queue, toggle with command
 - alexa, repeat song [index] [amount] - repeats a song/video from the queue [amount] times.
 
 # Installation
-- You'll need the following packages: `ytdl-core`, `discord.js`, `simpleyt`, `googleapis` (only if you want yt playlist and auto gen of songs, will update soon), `mysql`, all of the packages need to be latest.
-- You'll need a mysql server (since the mysql package is a bit outdated, you'll need to enable legacy support in the mysql server setup.), but if you don't care about playlist support, then you don't need this. (you'll need to remove some stuff though)
-Edit the alexa.js file and input your Youtube V3 API key on line 9, your mysql database config on lines 16-19 and your discord bot token on line 46.
+- You'll need the following packages: `ytdl-core`, `discord.js`, `simpleyt`, all of the packages need to be latest.
+- You'll need a mysql server (since the mysql package is a bit outdated, you'll need to enable legacy support in the mysql server setup.), but if you don't care about playlist support, then you don't need this. If you don't care about playlists (which is why the MySQL server is needed), then just make sure that `const enableMysql` is set to false, it's true by default (line 12). 
 The mysql table structure is this: `CREATE TABLE playlists (id int NOT NULL AUTO_INCREMENT PRIMARY KEY, guild VARCHAR(50), creator VARCHAR(50), title text, videos mediumtext);`, just input that to your mysql console, and you'll be good to go (make sure to select your database first! `use mysql` or `use {database name}`). More explaination on the reasoning of the structure in the extra notes. 
+- If you want to have voice commands, make sure to have `deepspeech` and `sox-stream` also installed. You'll need a model and a scorer. You can get these files on the release page of deepspeech's github (https://github.com/mozilla/DeepSpeech/releases). You'll also have to have sox installed and make sure the PATH variable is set to sox's binaries (http://sox.sourceforge.net/). Otherwise, set `const enableVoice` to false
+- If you want to have spotify enabled, install `spotify-web-api-node` and get the client id and token from spotify's dev website (https://developer.spotify.com/dashboard). Otherwise, set `const enableSpotify` to false.
+- If you want to have twitch enabled, just grab your twitch oauth code from https://twitchapps.com/tmi/ and put your channel in the options for twitch in alexa's file (lines 74-82). Make sure to set your guild and channel id (lines 84-85). Otherwise, set `const enableTwitch` to false.
+
+
 After all of that, just run the bot with `node alexa.js` or with pm2 `pm2 start alexa.js`
 
 # Extra Notes

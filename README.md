@@ -9,7 +9,7 @@ Yes yes, with state of the art technology (open source stuff that was free, than
 
 even 
 # Twitch Integration
-Chat asking you what song you're playing? Well they can just find out themselves using `!song` in twitch chat. They can also request songs that will be neatly sent to a channel in your server so you can play them or discard them. 
+Chat asking you what song you're playing? Well they can just find out themselves using `!song` in twitch chat. They can also request songs that will be neatly sent to a channel in your server so you can play them or discard them. The request command is `!req {song name/link}`.
 
 plus 
 # Spotify
@@ -37,6 +37,7 @@ Sure, many other bots have this, but those bots are closed source (how dare they
 - alexa, loop song - loops the current song thats playing, toggle it with this command.
 - alexa, loop queue - loops the queue, toggle with command
 - alexa, repeat song [index] [amount] - repeats a song/video from the queue [amount] times.
+- alexa, listen - starts listening for voice commands
 
 # Installation
 - You'll need the following packages: `ytdl-core`, `discord.js`, `simpleyt`, `lodash`, all of the packages need to be latest.

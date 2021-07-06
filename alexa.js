@@ -405,7 +405,7 @@ function stt(serverQueue, message) {
               if (result.search("play") != -1 || result.search("lay") != -1) {
 
                 var songToPlay = result.substr(result.indexOf("lay") + 3);
-              const say = require("say");
+            //  const say = require("say"); //i did not get tts to work :(
                 message.content = "alexa, play " + songToPlay;
                 message.reply("hopefully i got it right, here's what I translated: `" + songToPlay + "`");
                 play(message, serverQueue);

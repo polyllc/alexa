@@ -1089,7 +1089,7 @@ async function playlistInfo(message){
       con.query("SELECT * FROM playlists WHERE id = " + id + ";", async function (err, result){
         if(err) console.error(err);
         if(result.length > 0 || result[0]){
-          if(parseInt(result[0].guild) == message.guild.id || message.author.id == parseInt(result[0].creator) || message.author.id == 341561258480238592){
+          if(parseInt(result[0].guild) == message.guild.id || message.author.id == parseInt(result[0].creator)){
             let page = message.content.split(" ")[3];
             if(page == undefined){
               page = "1";

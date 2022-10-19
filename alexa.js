@@ -418,7 +418,7 @@ function stt(serverQueue, message) {
               }
               else if(result.search("remove") != -1 || result.search("go back") != -1){
                 serverQueue.songs.pop();
-                message.reply("ok ok i guess i fucked up ok im not perfect");
+                message.reply("ok ok im not perfect");
               }
               else if(result.search("disconnect") != -1 || result.search("leave") != -1){
                 dc(message, serverQueue);
@@ -603,7 +603,6 @@ function skip(message, squeue) {
   if (!squeue) return message.channel.send('no songs to skip (ie last song in queue)');
   if(squeue){
     if(squeue.dispatcher){
-      console.log("fuck me");
      squeue.dispatcher.end();
     }
   }
